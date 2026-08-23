@@ -162,6 +162,7 @@ function makeHarness(init?: Partial<ConversationSnapshot>) {
     read: () => savedScroll,
   }
   const forkAt = vi.fn()
+  const updateQueue = vi.fn<ChatViewSlotProps['updateQueue']>().mockResolvedValue(undefined)
   // Selection rides the REAL chat store (same construction path as
   // production; the view reads it through the PropsStore useStore share).
   const chat = createChatStore().create()
@@ -287,6 +288,7 @@ function makeHarness(init?: Partial<ConversationSnapshot>) {
     inspectCall,
     chatScroll,
     forkAt,
+    updateQueue,
     // Absent-service default; mention tests override with a real resolver.
     fileMentions: () => undefined,
     // Mirrors the real lookup chain (conversation namespace, then common).
@@ -295,7 +297,7 @@ function makeHarness(init?: Partial<ConversationSnapshot>) {
   const setSelection = (next: SelectionTarget | null): void => { chat.actions.select(next) }
   return {
     set, ChatView, props, openDetails, openFile, loadOlder, inspectCall,
-    chatScroll, forkAt, setSelection, toolOwners,
+    chatScroll, forkAt, updateQueue, setSelection, toolOwners,
   }
 }
 
@@ -535,6 +537,27 @@ describe('ChatView', () => {
 
     expect(view.getAllByText('same steering')).toHaveLength(2)
     expect(view.container.querySelectorAll('[data-pending-steering]')).toHaveLength(1)
+  })
+
+  it('removes a pending steer with the queue verb while a durable user bubble never offers it', async () => {
+    const pending = {
+      id: 'steer-occurrence-rem' as never,
+      messageId: 'steer-message-rem' as never,
+      placement: 'steering' as const,
+      content: [{ type: 'text' as const, text: 'withdraw me' }],
+      preview: 'withdraw me',
+      text: 'withdraw me',
+    }
+    const h = makeHarness({ nodes: [user(1, 'already sent')], queue: [pending], running: true })
+    const view = render(<h.ChatView {...h.props} />)
+
+    const pendingBubble = view.getByText('withdraw me').closest('[data-pending-steering]') as HTMLElement
+    fireEvent.click(within(pendingBubble).getByRole('button', { name: '删除这条插话' }))
+    expect(h.updateQueue).toHaveBeenCalledWith('steer-occurrence-rem', { kind: 'remove' })
+    // The remove affordance belongs only to the pending (pre-admission) steer;
+    // a durable user bubble keeps copy/clock and no trash action.
+    const durableBubble = view.getByText('already sent').closest('[class*="userRow"]') as HTMLElement
+    expect(within(durableBubble).queryByRole('button', { name: '删除这条插话' })).toBeNull()
   })
 
   it('animates only the latest unresolved model retry', () => {

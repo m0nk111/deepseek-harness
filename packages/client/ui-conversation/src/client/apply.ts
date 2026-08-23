@@ -396,6 +396,7 @@ export function apply(ctx: Context): void {
           actions.select(target)
           layout.openDetails()
         },
+        updateQueue: (itemId, action) => scoped.updateQueue(itemId, action),
         fileMentions: owner => ctx.get('chatFileMentions')?.forClosing(owner),
         openFile: (path) => {
           const cwd = sessions.list.getSnapshot().byId[sessionId]?.cwd

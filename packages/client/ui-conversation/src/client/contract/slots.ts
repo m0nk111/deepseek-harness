@@ -20,6 +20,7 @@ import type {
 import type { createChatStore } from '../stores.ts'
 import type { ComposerSubmitGesture, InputSubmitMode } from './composer-submission.ts'
 import type { ChatNode, ChatNodeKind } from './chat-nodes.ts'
+import type { QueueAction, QueueItemId } from './queue.ts'
 import type { CallId, SelectionTarget, ViewTab } from './views.ts'
 
 /** Browser-owned image that has not crossed the durable host boundary. */
@@ -775,6 +776,11 @@ export interface ChatViewInjected {
   }
   /** Fork through the completed turn ending at the eligible message `seq`, then open the child. */
   forkAt: (seq: number) => void
+  /**
+   * Apply one edit, remove, or strict steer operation to a pending queue or
+   * steering occurrence (the same session-scoped verb the queue dock uses).
+   */
+  updateQueue: (itemId: QueueItemId, action: QueueAction) => Promise<void>
   /**
    * Prose file-mention vocabulary for one closing message, from the optional
    * {@link ChatFileMentions} service (resolved lazily per call, so composing
