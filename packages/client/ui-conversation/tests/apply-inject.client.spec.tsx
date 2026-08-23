@@ -42,6 +42,7 @@ function sessionFakeFor() {
     loadOlder: vi.fn<ISession['loadOlder']>(() => Promise.resolve()),
     prompt: vi.fn<ISession['prompt']>(() => Promise.resolve({ ok: true, value: { accepted: true } })),
     cancel: vi.fn<ISession['cancel']>(() => Promise.resolve({ ok: true, value: { accepted: true } })),
+    updateQueue: vi.fn<ISession['updateQueue']>(() => Promise.resolve({ ok: true, value: { accepted: true } })),
   } satisfies SessionBehaviorOverrides
 }
 
@@ -147,6 +148,8 @@ describe('conversation slot inject API', () => {
     expect(b.runtime.sessions.calls).toContainEqual({
       method: 'fork', args: [{ sessionId: ROOT, atSeq: 17, increaseTitle: true }],
     })
+    await chatView.injected.updateQueue('item-1' as never, { kind: 'remove' })
+    expect(b.sessionFake.updateQueue).toHaveBeenCalledWith('item-1', { kind: 'remove' })
     await b.runtime.dispose()
   })
 

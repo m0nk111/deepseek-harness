@@ -8,8 +8,9 @@ import type { ReactNode } from 'react'
 import type {
   ModelRetryNode, TurnErrorNode, UserMessageNode,
 } from '@deepseek-ai/dsh-client-runtime/client'
-import { JsonBlock, MessageText, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconTrashOutline16, JsonBlock, MessageText, StateDot, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ChatNodeOwnerProps, ChatNodeViewProps, ChatViewSlotProps } from '../contract/slots.ts'
+import type { QueueAction, QueueItemId } from '../contract/queue.ts'
 import { ReferenceIcon } from '../reference/ReferenceIcon.tsx'
 import { CompactionItem } from './CompactionItem.tsx'
 import { ContextInjectionRow } from './ContextInjectionRow.tsx'
@@ -250,13 +251,19 @@ function UserStyleBubble({
 
 /**
  * Render one Host-authoritative pending steering item with the same visual
- * language as its eventual durable transcript node.
- * @param props - Pending message content and conversation translator.
+ * language as its eventual durable transcript node. Renders copy and, unlike
+ * a durable user bubble, a remove action that withdraws the pending steer
+ * from the running turn's next-step window before it is admitted.
+ * @param props - Pending message content, its occurrence identity, the
+ * session queue verb, and the conversation translator.
  * @returns the pending steering bubble.
  */
-export function PendingSteeringBubble({ content, renderMessageImages, t }: {
+export function PendingSteeringBubble({ content, renderMessageImages, id, updateQueue, t }: {
   content: readonly unknown[]
   renderMessageImages: ChatNodeOwnerProps['renderMessageImages']
+  /** The steering occurrence's stable inbox identity (item address for remove). */
+  id: QueueItemId
+  updateQueue: (itemId: QueueItemId, action: QueueAction) => Promise<void>
   t: ChatViewSlotProps['t']
 }): ReactNode {
   return (
@@ -271,6 +278,23 @@ export function PendingSteeringBubble({ content, renderMessageImages, t }: {
           clock="start"
           className={css.actions}
           t={t}
+          extraActions={(
+            <Tooltip label={t('queue.removeSteering')} side="bottom" delayMs={500}>
+              <button
+                type="button"
+                className={css.steerRemove}
+                aria-label={t('queue.removeSteering')}
+                onClick={() => {
+                  // The authoritative queue snapshot reconciles the bubble: a
+                  // rejection means the steer was already admitted, so its row
+                  // has left the pending set and there is nothing to surface.
+                  void updateQueue(id, { kind: 'remove' }).catch(() => {})
+                }}
+              >
+                <IconTrashOutline16 size={14} />
+              </button>
+            </Tooltip>
+          )}
         />
       )}
     />
